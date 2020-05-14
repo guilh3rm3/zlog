@@ -117,6 +117,10 @@ static int zlog_rule_output_static_file_single(zlog_rule_t * a_rule, zlog_thread
 		}
 		a_rule->static_dev = stb.st_dev;
 		a_rule->static_ino = stb.st_ino;
+
+		if (a_rule->file_fcntl_flags)
+			fcntl(a_rule->static_fd, F_SETFL, fcntl(a_rule->static_fd, F_GETFL) | a_rule->file_fcntl_flags);
+
 	}
 
 	if (write(a_rule->static_fd,
@@ -174,6 +178,9 @@ static int zlog_rule_output_static_file_rotate(zlog_rule_t * a_rule, zlog_thread
 		zc_error("open file[%s] fail, errno[%d]", a_rule->file_path, errno);
 		return -1;
 	}
+
+	if (a_rule->file_fcntl_flags)
+		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | a_rule->file_fcntl_flags);
 
 	len = zlog_buf_len(a_thread->msg_buf);
 	if (write(fd, zlog_buf_str(a_thread->msg_buf), len) < 0) {
@@ -263,6 +270,9 @@ static int zlog_rule_output_dynamic_file_single(zlog_rule_t * a_rule, zlog_threa
 		return -1;
 	}
 
+	if (a_rule->file_fcntl_flags)
+		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | a_rule->file_fcntl_flags);
+
 	if (write(fd, zlog_buf_str(a_thread->msg_buf), zlog_buf_len(a_thread->msg_buf)) < 0) {
 		zc_error("write fail, errno[%d]", errno);
 		close(fd);
@@ -302,6 +312,9 @@ static int zlog_rule_output_dynamic_file_rotate(zlog_rule_t * a_rule, zlog_threa
 		zc_error("open file[%s] fail, errno[%d]", zlog_buf_str(a_thread->path_buf), errno);
 		return -1;
 	}
+
+	if (a_rule->file_fcntl_flags)
+		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | a_rule->file_fcntl_flags);
 
 	len = zlog_buf_len(a_thread->msg_buf);
 	if (write(fd, zlog_buf_str(a_thread->msg_buf), len) < 0) {
@@ -568,6 +581,13 @@ err:
 	return -1;
 }
 
+static int get_file_fcntl_flags(const char *file_path_str)
+{
+	if (strstr(file_path_str, "/dev/pts/") != NULL)
+		return O_NONBLOCK;
+	return 0;
+}
+
 zlog_rule_t *zlog_rule_new(char *line,
 		zc_arraylist_t *levels,
 		zlog_format_t * default_format,
@@ -768,6 +788,8 @@ zlog_rule_t *zlog_rule_new(char *line,
 	case '"' :
 		if (!p) p = file_path;
 
+		a_rule->file_fcntl_flags = get_file_fcntl_flags(file_path);
+
 		rc = zlog_rule_parse_path(p, a_rule->file_path, sizeof(a_rule->file_path),
 				&(a_rule->dynamic_specs), time_cache_count);
 		if (rc) {
@@ -824,6 +846,8 @@ zlog_rule_t *zlog_rule_new(char *line,
 				zc_error("open file[%s] fail, errno[%d]", a_rule->file_path, errno);
 				goto err;
 			}
+			if (a_rule->file_fcntl_flags)
+				fcntl(a_rule->static_fd, F_SETFL, fcntl(a_rule->static_fd, F_GETFL) | a_rule->file_fcntl_flags);
 
 			/* save off the inode information for checking for a changed file later on */
 			if (fstat(a_rule->static_fd, &stb)) {
