@@ -41,6 +41,7 @@ struct zlog_rule_s {
 
 	unsigned int file_perms;
 	int file_open_flags;
+	int file_fcntl_flags;
 
 	char file_path[MAXLEN_PATH + 1];
 	zc_arraylist_t *dynamic_specs;
