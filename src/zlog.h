@@ -27,6 +27,7 @@ typedef struct zlog_category_s zlog_category_t;
 int zlog_init(const char *confpath);
 int zlog_reload(const char *confpath);
 void zlog_fini(void);
+int zlog_initialized(void);
 
 void zlog_profile(void);
 

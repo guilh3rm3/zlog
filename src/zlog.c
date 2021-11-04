@@ -1011,3 +1011,9 @@ int zlog_level_enabled(zlog_category_t *category, const int level)
 }
 
 const char *zlog_version(void) { return ZLOG_VERSION; }
+
+/*******************************************************************************/
+int zlog_initialized(void)
+{
+	return zlog_env_is_init;
+}
